@@ -1,6 +1,6 @@
 import os
 import shutil
-from repository import download_repo
+from download_repository import download_repo
 from scanner import find_java_files
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
