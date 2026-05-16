@@ -5,7 +5,6 @@ from scanner import find_java_files
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
-from delete_repository import delete_repository
 
 def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
@@ -98,8 +97,6 @@ def main():
     print("==============================")
     print("FIM DA ANÁLISE")
     print("==============================")
-
-    delete_repository(repo_path)
 
 if __name__ == "__main__":
     main()
