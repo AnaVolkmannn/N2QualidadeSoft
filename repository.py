@@ -15,8 +15,9 @@ def download_repo(repo_link):
         
     print("Baixando repositório...")
 
-    git.Repo.clone_from(repo_link, repo_name)
+    repo = git.Repo.clone_from(repo_link, repo_name)
 
     print("Download concluído.")
+    repo.close()
 
     return repo_name
