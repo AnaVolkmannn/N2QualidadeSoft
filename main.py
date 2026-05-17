@@ -148,11 +148,11 @@ def main():
     wait_next()
     show_dryness_analysis(java_files)
     wait_next()
-    show_performance_results(
-        global_config=global_config,
-        repo_path=repo_path,
-        build_tool=build_tool
-    )
+    #show_performance_results(
+    #    global_config=global_config,
+    #    repo_path=repo_path,
+    #    build_tool=build_tool
+    #)
 
     print("==============================")
     print("FIM DA ANÁLISE")
