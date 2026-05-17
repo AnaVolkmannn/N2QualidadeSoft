@@ -1,5 +1,6 @@
 import os
-import shutil
+import time
+from loguru import logger
 from download_repository import download_repo
 from scanner import scan_repo
 from analyzers.complexity import calculate_complexity
@@ -7,6 +8,9 @@ from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
 from core import GlobalConfig
 from analyzers.dryness import calculate_dryness
+from performance import ApplicationBootstrap
+from enums import ApplicationType, BuildToolType
+from pathlib import Path
 
 def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
@@ -91,8 +95,41 @@ def show_dryness_analysis(java_files):
         print(f"\nArquivo: {result['file']}")
         print(f"Blocos duplicados: {result['duplicated_blocks']}")
 
+def show_performance_results(
+    global_config: GlobalConfig,
+    repo_path: str,
+    build_tool: BuildToolType,
+):
+    logger.info("STARTING PERFORMANCE TEST")
+    application: ApplicationType 
+    if global_config.config["performance"]["application-type"] == ApplicationType.QUARKUS.value: 
+        application = ApplicationType.QUARKUS
+    else: application = ApplicationType.SPRING_BOOT
+
+    logger.info(f"repo_path={Path(__file__, repo_path).resolve()}")
+    logger.info(f"api_url={global_config.config["performance"]["api-url"]}")
+    logger.info(f"api_endpoints={global_config.config["performance"]["api-endpoints"]}")
+    logger.info(f"build_tool={build_tool.value}")
+    logger.info(f"application_type={application.value}")
+
+    try:
+        bootstrap = ApplicationBootstrap(
+            repo_absolute_path=Path(__file__, repo_path),
+            api_endpoints=global_config.config["performance"]["api-endpoints"],
+            api_url=global_config.config["performance"]["api-url"],
+            build_tool=build_tool,
+            application_type=application
+        )
+        bootstrap.run()
+        time.sleep(30)
+    finally:
+        logger.info("Terminating Java process.")
+        bootstrap.process.terminate()
+        bootstrap.process.wait()
+        logger.info("Process terminated.")
+
 def main():
-    global_config = GlobalConfig("./config/config.toml")
+    global_config = GlobalConfig("config/config.toml")
     clear_terminal()
     repo_path = get_repository()
 
@@ -111,6 +148,11 @@ def main():
     wait_next()
     show_dryness_analysis(java_files)
     wait_next()
+    show_performance_results(
+        global_config=global_config,
+        repo_path=repo_path,
+        build_tool=build_tool
+    )
 
     print("==============================")
     print("FIM DA ANÁLISE")

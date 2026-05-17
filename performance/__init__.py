@@ -1,1 +1,1 @@
-from .application_bootstrap import ApplicationBootstrap
+from performance.application_bootstrap import ApplicationBootstrap

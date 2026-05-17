@@ -1,1 +1,1 @@
-from global_config import GlobalConfig
+from core.global_config import GlobalConfig

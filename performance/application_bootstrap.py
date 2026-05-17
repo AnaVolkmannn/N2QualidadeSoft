@@ -2,6 +2,7 @@ import subprocess
 import time
 import sys
 from loguru import logger
+from enums import BuildToolType, ApplicationType
 
 class ApplicationBootstrap:
 	process: subprocess.Popen
@@ -9,7 +10,7 @@ class ApplicationBootstrap:
 	# Gerenciador de dependência java:
 	# - Maven
 	# - Gradle
-	dep_man: str
+	build_tool: BuildToolType
 	# API URL: localhost:8080 (example)
 	api_url: str
 	# Endpoints to test
@@ -17,29 +18,37 @@ class ApplicationBootstrap:
 	# Application type
 	# - SpringBoot
 	# - Quarkus
-	application_type: str
+	application_type: ApplicationType
 
-	def __init__(self, repo_absolute_path: str, dep_man: str, api_url: str, api_endpoints: list[str]):
+	def __init__(
+			self, repo_absolute_path: str,
+			application_type: ApplicationType, 
+			build_tool: BuildToolType,
+			api_url: str,
+			api_endpoints: list[str]
+		):
 		self.repo_absolute_path = repo_absolute_path
-		self.dep_man = dep_man
+		self.build_tool = build_tool
 		self.api_url = api_url
 		self.api_endpoints = api_endpoints
+		self.application_type = application_type
 
+	@logger.catch
 	def run(self):
 		command_args: list[str]
 
-		if self.dep_man == "maven":
-			if self.application_type == "quarkus":
+		if self.build_tool == BuildToolType.MAVEN:
+			if self.application_type == ApplicationType.QUARKUS:
 				command_args = ["mvn", "-f", self.repo_absolute_path, "quarkus:dev"]
 			
-			if self.application_type == "spring":
+			if self.application_type == ApplicationType.SPRING_BOOT:
 				command_args = ["mvn", "-f", self.repo_absolute_path, "spring-boot:run"]
 		
-		if self.dep_man == "gradle":
-			if self.application_type == "quarkus":
+		if self.build_tool == BuildToolType.GRADLE:
+			if self.application_type == ApplicationType.QUARKUS:
 				command_args = ["gradle", "-p", self.repo_absolute_path, "quarkusDev"]
 			
-			if self.application_type == "spring":
+			if self.application_type == ApplicationType.SPRING_BOOT:
 				command_args = ["gradle", "-p", self.repo_absolute_path, "bootRun"]
 
 		logger.info(f"Starting application: {self.repo_absolute_path}")
@@ -47,7 +56,7 @@ class ApplicationBootstrap:
 		try:
 			with open("java_output.log", "w") as log_file:
 				self.process = subprocess.Popen(
-					command_args,
+					args=command_args,
 					stdout=log_file,
 					stderr=subprocess.PIPE,
 					text=True
@@ -63,5 +72,5 @@ class ApplicationBootstrap:
 				
 				logger.info("Application Java started.")
 		except FileNotFoundError:
-			logger.error("The executable 'java' was not found in your PATH.")
+			logger.error("The executable 'java' or build tool was not found in your system PATH.")
 			sys.exit(1)

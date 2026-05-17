@@ -1,6 +1,5 @@
 [performance] # Performance Test
-# Example: [/api/endpoint1, /api/endpoint2]
-api-endpoints = []
-api-url = localhost:8080
-# Gradle, Maven
-dependency-manager = ""
+# Example: ["/api/endpoint1", "/api/endpoint2"]
+api-endpoints = ["/hello"]
+api-url = "localhost:8080"
+application-type = "quarkus"
