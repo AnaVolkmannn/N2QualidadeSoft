@@ -8,7 +8,7 @@ IGNORED_FOLDERS = [
     ".idea"
 ]
 
-def find_java_files(repo_path: str, file_extension: str):
+def find_files(repo_path: str, file_extension: str):
 
     finded_files = []
 
