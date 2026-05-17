@@ -1,7 +1,7 @@
 import os
 import shutil
 from download_repository import download_repo
-from scanner import find_java_files
+from scanner import find_files
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
@@ -20,7 +20,7 @@ def get_repository():
     return repo_path
 
 def load_java_files(repo_path):
-    java_files = find_java_files(repo_path)
+    java_files = find_files(repo_path, "java")
     return java_files
 
 
