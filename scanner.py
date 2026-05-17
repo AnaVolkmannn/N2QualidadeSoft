@@ -8,9 +8,9 @@ IGNORED_FOLDERS = [
     ".idea"
 ]
 
-def find_java_files(repo_path):
+def find_java_files(repo_path: str, file_extension: str):
 
-    java_files = []
+    finded_files = []
 
     for root, dirs, files in os.walk(repo_path):
 
@@ -18,10 +18,10 @@ def find_java_files(repo_path):
 
         for file in files:
 
-            if file.endswith(".java"):
+            if file.endswith(file_extension):
 
-                full_path = os.path.join(root, file)
+                full_path = os.path.join(root, f".{file_extension}")
 
-                java_files.append(full_path)
+                finded_files.append(full_path)
 
-    return java_files
+    return finded_files
