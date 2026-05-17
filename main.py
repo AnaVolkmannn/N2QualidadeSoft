@@ -5,6 +5,7 @@ from scanner import find_files
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
+from core import GlobalConfig
 
 def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
@@ -76,7 +77,7 @@ def show_cbo_analysis(java_files, project_classes):
                 print(f"- {classe}")
 
 def main():
-
+    global_config = GlobalConfig("./config/config.toml")
     clear_terminal()
     repo_path = get_repository()
 
