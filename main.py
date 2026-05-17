@@ -5,7 +5,7 @@ from scanner import scan_repo
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
-
+from analyzers.dryness import calculate_dryness
 
 def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
@@ -74,6 +74,21 @@ def show_cbo_analysis(java_files, project_classes):
             for classe in result['classes_used']:
                 print(f"- {classe}")
 
+def show_dryness_analysis(java_files):
+
+    print("==============================")
+    print("ANÁLISE DE DUPLICAÇÃO (DRYNESS)")
+    print("==============================")
+
+    for file in java_files:
+
+        result = calculate_dryness(file)
+
+        if result is None:
+            continue
+
+        print(f"\nArquivo: {result['file']}")
+        print(f"Blocos duplicados: {result['duplicated_blocks']}")
 
 def main():
 
@@ -92,6 +107,8 @@ def main():
     show_project_classes(project_classes)
     wait_next()
     show_cbo_analysis(java_files, project_classes)
+    wait_next()
+    show_dryness_analysis(java_files)
     wait_next()
 
     print("==============================")
