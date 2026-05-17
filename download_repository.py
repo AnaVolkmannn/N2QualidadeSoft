@@ -1,7 +1,7 @@
 import git
 import os
 
-REPOSITORIES_FOLDER = ".repositories"
+REPO_FOLDER = ".repo"
 
 def download_repo(repo_link):
 
@@ -9,11 +9,11 @@ def download_repo(repo_link):
         print("O link do repositório deve terminar com '.git'.")
         return None
 
-    # cria a pasta .repositories caso não exista
-    os.makedirs(REPOSITORIES_FOLDER, exist_ok=True)
+    # cria a pasta .repo caso não exista
+    os.makedirs(REPO_FOLDER, exist_ok=True)
 
     repo_name = repo_link.split("/")[-1].split(".")[0]
-    repo_path = os.path.join(REPOSITORIES_FOLDER, repo_name)
+    repo_path = os.path.join(REPO_FOLDER, repo_name)
 
     if os.path.exists(repo_path):
         print("O repositório já existe localmente.")
