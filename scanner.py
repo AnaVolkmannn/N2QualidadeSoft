@@ -8,7 +8,6 @@ IGNORED_FOLDERS = [
     ".idea"
 ]
 
-
 def scan_repo(repo_path: str, file_extension: str):
 
     found_files = []
@@ -25,7 +24,7 @@ def scan_repo(repo_path: str, file_extension: str):
             if file.endswith(file_extension):
                 full_path = os.path.join(root, file)
                 found_files.append(full_path)
-                
+
     return {
         "files": found_files,
         "build_tool": build_tool
