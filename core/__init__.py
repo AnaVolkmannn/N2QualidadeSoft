@@ -1,0 +1,1 @@
+from core.global_config import GlobalConfig
