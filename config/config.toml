@@ -1,3 +1,9 @@
+[repo]
+url = "https://github.com/doda-s/nippon-ten.git"
+
+[feature-flags]
+performance = true
+
 [performance] # Performance Test
 # Example: ["/api/endpoint1", "/api/endpoint2"]
 api-endpoints = ["/hello"]

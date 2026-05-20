@@ -39,17 +39,17 @@ class ApplicationBootstrap:
 
 		if self.build_tool == BuildToolType.MAVEN:
 			if self.application_type == ApplicationType.QUARKUS:
-				command_args = ["mvn", "-f", self.repo_absolute_path, "quarkus:dev"]
+				command_args = ["mvn", "-f", f"{self.repo_absolute_path}/pom.xml", "quarkus:dev"]
 			
 			if self.application_type == ApplicationType.SPRING_BOOT:
-				command_args = ["mvn", "-f", self.repo_absolute_path, "spring-boot:run"]
+				command_args = ["mvn", "-f", f"{self.repo_absolute_path}/pom.xml", "spring-boot:run"]
 		
 		if self.build_tool == BuildToolType.GRADLE:
 			if self.application_type == ApplicationType.QUARKUS:
-				command_args = ["gradle", "-p", self.repo_absolute_path, "quarkusDev"]
+				command_args = ["gradle", "-p", f"{self.repo_absolute_path}/build.gradle", "quarkusDev"]
 			
 			if self.application_type == ApplicationType.SPRING_BOOT:
-				command_args = ["gradle", "-p", self.repo_absolute_path, "bootRun"]
+				command_args = ["gradle", "-p", f"{self.repo_absolute_path}/build.gradle", "bootRun"]
 
 		logger.info(f"Starting application: {self.repo_absolute_path}")
 
@@ -66,7 +66,7 @@ class ApplicationBootstrap:
 				status_code = self.process.poll()
         		
 				if status_code is not None:
-					_, errors = self.processo.communicate()
+					_, errors = self.process.communicate()
 					logger.error(f"The Java process failed to start. code={status_code} err={errors}")
 					sys.exit(1)
 				

@@ -19,7 +19,7 @@ def download_repo(repo_link):
         print("O repositório já existe localmente.")
         return repo_path
 
-    print("Baixando repositório...")
+    print(f"Baixando repositório {repo_link}")
     repo = git.Repo.clone_from(repo_link, repo_path)
     print("Download concluído.")
     repo.close()

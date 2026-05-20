@@ -19,8 +19,7 @@ def wait_next():
     input("\nPressione ENTER para continuar...")
     clear_terminal()
 
-def get_repository():
-    repo_link = input("Insira o link do repositório: ")
+def get_repository(repo_link: str):
     repo_path = download_repo(repo_link)
     return repo_path
 
@@ -114,7 +113,7 @@ def show_performance_results(
 
     try:
         bootstrap = ApplicationBootstrap(
-            repo_absolute_path=Path(__file__, repo_path),
+            repo_absolute_path=Path(__file__.replace("/main.py", ""), repo_path),
             api_endpoints=global_config.config["performance"]["api-endpoints"],
             api_url=global_config.config["performance"]["api-url"],
             build_tool=build_tool,
@@ -131,7 +130,7 @@ def show_performance_results(
 def main():
     global_config = GlobalConfig("config/config.toml")
     clear_terminal()
-    repo_path = get_repository()
+    repo_path = get_repository(global_config.config["repo"]["url"])
 
     if repo_path is None:
         return
@@ -148,11 +147,12 @@ def main():
     wait_next()
     show_dryness_analysis(java_files)
     wait_next()
-    #show_performance_results(
-    #    global_config=global_config,
-    #    repo_path=repo_path,
-    #    build_tool=build_tool
-    #)
+    if global_config.config["feature-flags"]["performance"] == True:
+        show_performance_results(
+            global_config=global_config,
+            repo_path=repo_path,
+            build_tool=build_tool
+        )
 
     print("==============================")
     print("FIM DA ANÁLISE")
