@@ -1,10 +1,12 @@
 import os
 import shutil
+from unittest import result
 from download_repository import download_repo
 from scanner import find_java_files
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
 from core.project_classes import get_project_classes
+from analyzers.confiability import ConfiabilityAnalyzer
 
 def clear_terminal():
     os.system("cls" if os.name == "nt" else "clear")
@@ -76,16 +78,17 @@ def show_cbo_analysis(java_files, project_classes):
                 print(f"- {classe}")
 
 def main():
-
     clear_terminal()
     repo_path = get_repository()
-
+    
     if repo_path is None:
         return
 
     java_files = load_java_files(repo_path)
     project_classes = load_project_classes(java_files)
-
+    
+    confiability_analyzer = ConfiabilityAnalyzer(java_files,project_classes,repo_path, True)
+    
     clear_terminal()
     show_complexity_analysis(java_files)
     wait_next()
@@ -93,6 +96,14 @@ def main():
     wait_next()
     show_cbo_analysis(java_files, project_classes)
     wait_next()
+    result = confiability_analyzer.analyze()
+
+    print(repo_path)
+
+    print(result.score)           
+    print(result.overall_coverage)
+    print(result.file_coverages)  
+    print(result.mutation)        
 
     print("==============================")
     print("FIM DA ANÁLISE")
