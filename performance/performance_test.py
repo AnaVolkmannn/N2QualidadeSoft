@@ -1,7 +1,9 @@
 import asyncio
 import httpx
 import time
+from performance.performance_test_result import PerformanceTestResult
 from loguru import logger
+
 
 from core.global_config import GlobalConfig
 
@@ -14,6 +16,7 @@ class PerformanceTest:
     CONNECTION_RETRY: int
     CONNECTION_RETRY_TIMEOUT: int
     global_config: GlobalConfig
+    performance_test_results: list[PerformanceTestResult]
 
     def __init__(self, global_config: GlobalConfig):
         self.global_config = global_config
@@ -25,9 +28,10 @@ class PerformanceTest:
         self.CONNECTION_RETRY = self.global_config.config["performance"]["connection-retry"]
         self.CONNECTION_RETRY_TIMEOUT = self.global_config.config["performance"]["connection-retry-timeout"]
     
-    async def start_tests(self):
+    async def start_tests(self) -> list[PerformanceTestResult]:
         url_to_test = f'http://{self.URL}{self.ENDPOINTS[0]}'
         logger.info(f"Trying to connect [{url_to_test}]")
+        self.performance_test_results = []
         
         async with httpx.AsyncClient() as http_client:
             for r in range(self.CONNECTION_RETRY):
@@ -56,6 +60,8 @@ class PerformanceTest:
                     await self.init_step(step, endpoint)
                 except Exception as e:
                     logger.error(f"Error during step test: {e}")
+        
+        return self.performance_test_results
 
     async def init_step(self, step: int, endpoint: str):
         url = f"http://{self.URL}{endpoint}"
@@ -83,13 +89,17 @@ class PerformanceTest:
         successes = [t for t in requests_time if t > 0]
         failures = [t for t in requests_time if t == -1.0]
         
-        logger.info(f"--- Step Finished ({step} users) ---")
-        logger.info(f"Total requests sent: {len(requests_time)}")
-        logger.info(f"Successes: {len(successes)} | Failures: {len(failures)}")
+        perf_result = PerformanceTestResult()
+        perf_result.step = step
+        perf_result.total_requests = len(requests_time)
+        perf_result.success_count = len(successes)
+        perf_result.failure_count = len(failures)
+        perf_result.requests_time = requests_time
+        perf_result.real_duration = real_duration
         if successes:
-            average_latency = sum(successes) / len(successes)
-            logger.info(f"Average Latency: {average_latency:.2f} ms")
-            logger.info(f"Estimated RPS: {len(requests_time) / real_duration:.2f} req/s")
+            perf_result.average_latency = sum(successes) / len(successes)
+            perf_result.rps = len(requests_time) / real_duration
+        self.performance_test_results.append(perf_result)
 
     async def virtual_user_worker(self, client: httpx.AsyncClient, url: str, results_list: list):
         test_end_time = time.perf_counter() + (self.STEP_DURATION / 1000)

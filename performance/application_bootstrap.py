@@ -51,8 +51,10 @@ class ApplicationBootstrap:
 
             self.process = subprocess.Popen(
                 args=command_args,
-                stdout=self.log_file,
-                stderr=self.log_error,
+                #stdout=self.log_file,
+                stdout=subprocess.DEVNULL,
+                #stderr=self.log_error,
+                stderr=subprocess.DEVNULL,
                 text=True
             )
 

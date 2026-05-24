@@ -101,6 +101,9 @@ async def show_performance_results(
     repo_path: str,
     build_tool: BuildToolType,
 ):
+    if global_config.config["feature-flags"]["performance"] == False:
+        return
+    
     logger.info("STARTING PERFORMANCE TEST")
     application: ApplicationType 
     if global_config.config["performance"]["application-type"] == ApplicationType.QUARKUS.value: 
@@ -124,12 +127,22 @@ async def show_performance_results(
             application_type=application
         )
         bootstrap.run()
-        await performance_test.start_tests()
+        perf_results = await performance_test.start_tests()
     finally:
         logger.info("Terminating Java process.")
         bootstrap.process.terminate()
         bootstrap.process.wait()
         logger.info("Process terminated.")
+    
+    for r in perf_results:
+        logger.info(f"--- Step Finished ({r.step} users) ---")
+        logger.info(f"Total requests sent: {len(r.requests_time)}")
+        logger.info(f"Successes: {r.success_count} | Failures: {r.failure_count}")
+        
+        if r.average_latency:
+            logger.info(f"Average Latency: {r.average_latency:.2f} ms")
+        if r.rps:
+            logger.info(f"Estimated RPS: {r.rps:.2f} req/s")
 
 def main():
     global_config = GlobalConfig("config/config.toml")
@@ -151,12 +164,11 @@ def main():
     wait_next()
     show_dryness_analysis(java_files)
     wait_next()
-    if global_config.config["feature-flags"]["performance"] == True:
-        asyncio.run(show_performance_results(
-            global_config=global_config,
-            repo_path=repo_path,
-            build_tool=build_tool
-        ))
+    asyncio.run(show_performance_results(
+        global_config=global_config,
+        repo_path=repo_path,
+        build_tool=build_tool
+    ))
 
     print("==============================")
     print("FIM DA ANÁLISE")
