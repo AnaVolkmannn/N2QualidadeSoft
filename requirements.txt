@@ -1,2 +1,6 @@
-GitPython
-javalang
+gitdb==4.0.12
+GitPython==3.1.50
+javalang==0.13.0
+loguru==0.7.3
+six==1.17.0
+smmap==5.0.3

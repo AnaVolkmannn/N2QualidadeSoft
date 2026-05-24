@@ -221,4 +221,4 @@ __marimo__/
 .vscode/
 
 #ingora a pasta do repositório clonado
-.repositories/
+.repo/
