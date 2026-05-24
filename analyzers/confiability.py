@@ -1,20 +1,4 @@
-"""
-Módulo III: Confiabilidade (Testabilidade) — ISO/IEC 25010
-============================================================
-Responsabilidades:
-  1. Cobertura de Testes (Coverage)
-     - Detecta arquivos de teste JUnit presentes no projeto
-     - Executa o projeto com JaCoCo via Maven/Gradle e lê o XML gerado
-     - Fallback estático: estima cobertura via análise léxica quando
-       o build não está disponível
-  2. Análise de Mutação (Bônus)
-     - Executa PIT (Pitest) via Maven/Gradle quando possível
-     - Fallback estático: simula mutações léxicas nos métodos e verifica
-       se os testes referenciam os operadores mutados
-"""
-
 from __future__ import annotations
-
 import os
 import re
 import copy
@@ -24,7 +8,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-
+from scanner import scan_repo
 
 # ---------------------------------------------------------------------------
 # Data classes de resultado
@@ -67,7 +51,6 @@ class ConfiabilityResult:
 # ---------------------------------------------------------------------------
 
 def _read_file(path: str) -> str:
-    """Lê um arquivo ignorando erros de encoding."""
     try:
         return Path(path).read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -82,24 +65,15 @@ def _count_non_blank_lines(content: str) -> int:
 # Detecção de build tool
 # ---------------------------------------------------------------------------
 
-def _detect_build_tool(project_root: str) -> Optional[str]:
-    root = Path(project_root)
-    if (root / "pom.xml").exists():
-        return "maven"
-    if (root / "build.gradle").exists() or (root / "build.gradle.kts").exists():
-        return "gradle"
-    return None
-
+scan_repo_result = scan_repo(repo_path="", file_extension=".java")
+build_tool = scan_repo_result["build_tool"]
 
 # ---------------------------------------------------------------------------
 # Execução de JaCoCo
 # ---------------------------------------------------------------------------
 
 def _run_jacoco(project_root: str, build_tool: str) -> Optional[str]:
-    """
-    Executa o build com JaCoCo e retorna o caminho do XML de relatório,
-    ou None se a execução falhar.
-    """
+
     root = Path(project_root)
 
     if build_tool == "maven":
@@ -124,9 +98,6 @@ def _run_jacoco(project_root: str, build_tool: str) -> Optional[str]:
 
 
 def _parse_jacoco_xml(xml_path: str) -> dict[str, float]:
-    """
-    Analisa jacoco.xml e retorna {source_file_name: coverage_percent}.
-    """
     coverage_map: dict[str, float] = {}
     try:
         tree = ET.parse(xml_path)
@@ -189,9 +160,6 @@ def _static_coverage_estimate(
 # ---------------------------------------------------------------------------
 
 def _run_pitest(project_root: str, build_tool: str) -> Optional[str]:
-    """
-    Executa o PIT e retorna o caminho do diretório de relatório, ou None.
-    """
     root = Path(project_root)
     try:
         if build_tool == "maven":
@@ -217,7 +185,6 @@ def _run_pitest(project_root: str, build_tool: str) -> Optional[str]:
 
 
 def _parse_pitest_report(pit_dir: str) -> MutationResult:
-    """Analisa mutations.xml gerado pelo PIT."""
     total = killed = 0
     details: list[dict] = []
     xml_files = list(Path(pit_dir).rglob("mutations.xml"))
@@ -265,10 +232,6 @@ _MUTATION_OPERATORS: list[tuple[str, str, str]] = [
 
 
 def _extract_methods(content: str) -> list[dict]:
-    """
-    Extrai métodos Java (cabeçalho + corpo) de forma simplificada.
-    Retorna lista de {name, start, end, body}.
-    """
     methods: list[dict] = []
     lines = content.splitlines(keepends=True)
 
@@ -311,11 +274,6 @@ def _test_kills_mutation(
     mutant_body: str,
     test_files: list[str],
 ) -> bool:
-    """
-    Heurística: um teste "mata" a mutação se:
-      - Chama o método mutado (nome aparece no teste), E
-      - Contém pelo menos uma asserção.
-    """
     for tf in test_files:
         tc = _read_file(tf)
         if mutant_method_name in tc and re.search(
@@ -330,11 +288,6 @@ def _static_mutation_analysis(
     test_files: list[str],
     max_mutants_per_file: int = 20,
 ) -> MutationResult:
-    """
-    Análise de mutação estática (sem build).
-    Aplica operadores de mutação léxica e verifica se os testes matariam
-    cada mutante usando heurísticas de referência de método + asserção.
-    """
     total = killed = 0
     details: list[dict] = []
 
@@ -374,20 +327,6 @@ def _static_mutation_analysis(
 # ---------------------------------------------------------------------------
 
 class ConfiabilityAnalyzer:
-    """
-    Módulo III — Confiabilidade (Testabilidade) — ISO/IEC 25010
-
-    Parâmetros
-    ----------
-    java_files : list[str]
-        Caminhos absolutos de todos os arquivos .java do projeto.
-    project_classes : set[str]
-        Nomes simples de todas as classes do projeto (usado por outros módulos).
-    project_root : str
-        Diretório raiz do projeto clonado.
-    run_mutation : bool
-        Se True, executa (ou simula) análise de mutação.
-    """
 
     # Limiar de cobertura para score máximo (%)
     _COVERAGE_FULL_SCORE_THRESHOLD = 80.0
@@ -408,21 +347,20 @@ class ConfiabilityAnalyzer:
     # Ponto de entrada público
     # ------------------------------------------------------------------
 
-    def analyze(self) -> ConfiabilityResult:
+    def analyze(self, build_tool) -> ConfiabilityResult:
         self._print_header()
 
         test_files, source_files = self._split_test_and_source_files()
         has_tests = bool(test_files)
 
         if not has_tests:
-            print("  ✗ Nenhum arquivo de teste encontrado.")
+            print("  Nenhum arquivo de teste encontrado.")
             return self._empty_result(source_files)
 
-        print(f"  ✔ Arquivos de teste encontrados : {len(test_files)}")
-        print(f"  ✔ Arquivos de produção          : {len(source_files)}")
+        print(f"  Arquivos de teste encontrados : {len(test_files)}")
+        print(f"  Arquivos de produção          : {len(source_files)}")
 
-        build_tool = _detect_build_tool(self.project_root)
-        print(f"  ✔ Build tool detectado          : {build_tool or 'não identificado'}")
+        print(f"  Build tool detectado          : {build_tool or 'não identificado'}")
         
         # --- Coverage ---
         file_coverages, overall_coverage, jacoco_used = self._analyze_coverage(
@@ -488,10 +426,6 @@ class ConfiabilityAnalyzer:
         test_files: list[str],
         build_tool: Optional[str],
     ) -> tuple[list[FileCoverageResult], float, bool]:
-        """
-        Tenta executar JaCoCo; se não conseguir, usa estimativa estática.
-        Retorna (file_coverages, overall_percent, jacoco_was_used).
-        """
         jacoco_xml: Optional[str] = None
         jacoco_used = False
 
@@ -620,7 +554,7 @@ class ConfiabilityAnalyzer:
             file_coverages=file_coverages,
             mutation=None,
             score=0.0,
-            build_tool=_detect_build_tool(self.project_root),
+            build_tool=build_tool,
             jacoco_used=False,
             pitest_used=False,
         )
@@ -658,11 +592,3 @@ class ConfiabilityAnalyzer:
         rating = self._iso_rating(score)
         print(f"  Avaliação ISO/IEC 25010   : {rating}")
         print("-" * 60)
-
-    @staticmethod
-    def _iso_rating(score: float) -> str:
-        if score >= 0.80:
-            return "APROVADO  ✔  (Confiabilidade adequada)"
-        if score >= 0.50:
-            return "PARCIAL   ⚠  (Melhorias necessárias)"
-        return "REPROVADO ✗  (Confiabilidade insuficiente)"

@@ -4,3 +4,4 @@ javalang==0.13.0
 loguru==0.7.3
 six==1.17.0
 smmap==5.0.3
+reportlab==4.5.1
