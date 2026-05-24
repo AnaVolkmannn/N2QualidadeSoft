@@ -7,6 +7,7 @@ class PerformanceTestResult:
 	rps: float
 	requests_time: list
 	real_duration: float
+	difference_latency: float
 
 	def __init__(self):
 		pass

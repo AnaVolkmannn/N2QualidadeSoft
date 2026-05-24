@@ -140,7 +140,10 @@ async def show_performance_results(
         logger.info(f"Successes: {r.success_count} | Failures: {r.failure_count}")
         
         if r.average_latency:
-            logger.info(f"Average Latency: {r.average_latency:.2f} ms")
+            log_message = f"Average Latency: {r.average_latency:.2f} ms"
+            if r.difference_latency:
+                log_message += f" ({r.difference_latency:.2f}%)"
+            logger.info(log_message)
         if r.rps:
             logger.info(f"Estimated RPS: {r.rps:.2f} req/s")
 

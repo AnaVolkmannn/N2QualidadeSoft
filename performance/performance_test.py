@@ -99,6 +99,20 @@ class PerformanceTest:
         if successes:
             perf_result.average_latency = sum(successes) / len(successes)
             perf_result.rps = len(requests_time) / real_duration
+
+            perf_results_size = len(self.performance_test_results)
+            print("RESULTS SIZE: ", perf_results_size)
+            if perf_results_size > 0:
+                diff_latency = await self.percentage_difference_latency(
+                    self.performance_test_results[perf_results_size - 1].average_latency,
+                    perf_result.average_latency
+                )
+                print("DIFF LATENCY: ", diff_latency)
+                perf_result.difference_latency = diff_latency
+            else:
+                perf_result.difference_latency = 0
+        
+
         self.performance_test_results.append(perf_result)
 
     async def virtual_user_worker(self, client: httpx.AsyncClient, url: str, results_list: list):
@@ -121,3 +135,12 @@ class PerformanceTest:
         except Exception as e:
             results_list.append(-1.0)
             return -1.0
+    
+    # Calcula porcentagem em relação a A
+    async def percentage_difference_latency(self, a, b):
+        print("A: ", a)
+        print("B: ", b)
+        
+        diff = b - a
+        percent = diff*100/a
+        return percent
