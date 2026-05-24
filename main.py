@@ -1,7 +1,9 @@
+import asyncio
 import os
 import time
 from loguru import logger
 from download_repository import download_repo
+from performance.performance_test import PerformanceTest
 from scanner import scan_repo
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
@@ -94,7 +96,7 @@ def show_dryness_analysis(java_files):
         print(f"\nArquivo: {result['file']}")
         print(f"Blocos duplicados: {result['duplicated_blocks']}")
 
-def show_performance_results(
+async def show_performance_results(
     global_config: GlobalConfig,
     repo_path: str,
     build_tool: BuildToolType,
@@ -111,6 +113,8 @@ def show_performance_results(
     logger.info(f"build_tool={build_tool.value}")
     logger.info(f"application_type={application.value}")
 
+    performance_test = PerformanceTest(global_config=global_config)
+
     try:
         bootstrap = ApplicationBootstrap(
             repo_absolute_path=Path(__file__.replace("/main.py", ""), repo_path),
@@ -120,7 +124,7 @@ def show_performance_results(
             application_type=application
         )
         bootstrap.run()
-        time.sleep(30)
+        await performance_test.start_tests()
     finally:
         logger.info("Terminating Java process.")
         bootstrap.process.terminate()
@@ -148,11 +152,11 @@ def main():
     show_dryness_analysis(java_files)
     wait_next()
     if global_config.config["feature-flags"]["performance"] == True:
-        show_performance_results(
+        asyncio.run(show_performance_results(
             global_config=global_config,
             repo_path=repo_path,
             build_tool=build_tool
-        )
+        ))
 
     print("==============================")
     print("FIM DA ANÁLISE")
