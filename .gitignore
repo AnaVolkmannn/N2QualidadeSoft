@@ -222,3 +222,6 @@ __marimo__/
 
 #ingora a pasta do repositório clonado
 .repo/
+
+#ignora a pasta que contém os arquivos PDF gerados como relatório
+.PDF/
