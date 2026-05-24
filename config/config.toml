@@ -1,5 +1,22 @@
+[repo]
+url = "https://github.com/doda-s/nippon-ten.git"
+
+[feature-flags]
+performance = true
+
 [performance] # Performance Test
 # Example: ["/api/endpoint1", "/api/endpoint2"]
 api-endpoints = ["/hello"]
 api-url = "localhost:8080"
 application-type = "quarkus"
+# "Step" representa uma quantidade x de chamadas simultâneas para a api que
+# está sendo testada.
+steps = [10,100,500]
+# step-duration se refere a quantidade de tempo, em ms, 
+# que cada step irá durar.
+step-duration = 10000
+# request-interval-time representa o tempo em ms que será aguardado
+# entre cada repetição das requisições, por step.
+request-interval-time = 1000
+connection-retry = 10
+connection-retry-timeout = 5000

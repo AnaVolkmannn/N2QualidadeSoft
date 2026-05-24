@@ -1,8 +1,10 @@
+import asyncio
 import os
 import time
 from pathlib import Path
 from loguru import logger
 from download_repository import download_repo
+from performance.performance_test import PerformanceTest
 from scanner import scan_repo
 from analyzers.complexity import calculate_complexity
 from analyzers.coupling import calculate_cbo
@@ -21,8 +23,7 @@ def wait_next():
     input("\nPressione ENTER para continuar...")
     clear_terminal()
 
-def get_repository():
-    repo_link = input("Insira o link do repositório: ")
+def get_repository(repo_link: str):
     repo_path = download_repo(repo_link)
     return repo_path
 
@@ -133,12 +134,14 @@ def show_dryness_analysis(java_files):
 
     return total_duplicacoes
 
-def show_performance_results(
+async def show_performance_results(
     global_config: GlobalConfig,
     repo_path: str,
     build_tool: BuildToolType,
 ):
-
+    if global_config.config["feature-flags"]["performance"] == False:
+        return
+    
     logger.info("STARTING PERFORMANCE TEST")
 
     application: ApplicationType
@@ -162,10 +165,12 @@ def show_performance_results(
     logger.info(f"build_tool={build_tool.value}")
     logger.info(f"application_type={application.value}")
 
+    performance_test = PerformanceTest(global_config=global_config)
+
     try:
 
         bootstrap = ApplicationBootstrap(
-            repo_absolute_path=Path(repo_path).resolve(),
+            repo_absolute_path=Path(__file__.replace("/main.py", ""), repo_path),
             api_endpoints=global_config.config["performance"]["api-endpoints"],
             api_url=global_config.config["performance"]["api-url"],
             build_tool=build_tool,
@@ -173,9 +178,7 @@ def show_performance_results(
         )
 
         bootstrap.run()
-
-        time.sleep(30)
-
+        perf_results = await performance_test.start_tests()
     finally:
 
         logger.info("Terminating Java process.")
@@ -184,6 +187,77 @@ def show_performance_results(
         bootstrap.process.wait()
 
         logger.info("Process terminated.")
+    
+    for r in perf_results:
+        logger.info(f"--- Step Finished ({r.step} users) ---")
+        logger.info(f"Total requests sent: {len(r.requests_time)}")
+        logger.info(f"Successes: {r.success_count} | Failures: {r.failure_count}")
+        
+        if r.average_latency:
+            log_message = f"Average Latency: {r.average_latency:.2f} ms"
+            if r.difference_latency:
+                log_message += f" ({r.difference_latency:.2f}%)"
+            logger.info(log_message)
+        if r.rps:
+            logger.info(f"Estimated RPS: {r.rps:.2f} req/s")
+
+
+def show_confiability_analysis(
+    java_files,
+    project_classes,
+    repo_path,
+    build_tool
+):
+
+    confiability_analyzer = ConfiabilityAnalyzer(
+        java_files,
+        project_classes,
+        repo_path,
+        True
+    )
+
+    result = confiability_analyzer.analyze(
+        build_tool
+    )
+
+    overall_coverage = result.overall_coverage
+    score = result.score
+    mutation = result.mutation
+
+    print()
+    print("-" * 60)
+    print("  RESUMO DE CONFIABILIDADE")
+    print("-" * 60)
+
+    print(f"  Cobertura geral de linhas : {overall_coverage:.2f}%")
+
+    if mutation:
+        print(f"  Mutantes gerados          : {mutation.total_mutants}")
+        print(f"  Mutantes eliminados       : {mutation.killed_mutants}")
+        print(f"  Mutantes sobreviventes    : {mutation.survived_mutants}")
+        print(
+            f"  Score de mutação          : "
+            f"{mutation.mutation_score * 100:.2f}%"
+        )
+
+    print(
+        f"  Score de confiabilidade   : "
+        f"{score:.4f}  ({score * 100:.2f}%)"
+    )
+
+    print("-" * 60)
+
+    return {
+    "coverage": overall_coverage,
+    "score": score,
+    "mutantes_gerados":
+        mutation.total_mutants if mutation else 0,
+    "mutantes_eliminados":
+        mutation.killed_mutants if mutation else 0,
+    "mutantes_sobreviventes":
+        mutation.survived_mutants if mutation else 0
+}
+
 
 
 def show_confiability_analysis(
@@ -246,7 +320,8 @@ def show_confiability_analysis(
 def main():
     global_config = GlobalConfig("config/config.toml")
     clear_terminal()
-    repo_path = get_repository()
+    repo_path = get_repository(global_config.config["repo"]["url"])
+
     if repo_path is None:
         return
     java_files, build_tool = load_java_files(repo_path)
@@ -273,11 +348,12 @@ def main():
         build_tool
     )
     wait_next()
-    # show_performance_results(
-    #     global_config=global_config,
-    #     repo_path=repo_path,
-    #     build_tool=build_tool
-    # )
+    asyncio.run(show_performance_results(
+        global_config=global_config,
+        repo_path=repo_path,
+        build_tool=build_tool
+    ))
+
     resultado_analise = {
     "projeto": os.path.basename(repo_path),
     "build_tool": build_tool.value,
