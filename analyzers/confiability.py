@@ -75,7 +75,7 @@ def _read_file(path: str) -> str:
 
 
 def _count_non_blank_lines(content: str) -> int:
-    return sum(1 for ln in content.splitlines() if ln.strip())
+    return sum(1 for line in content.splitlines() if line.strip())
 
 
 # ---------------------------------------------------------------------------
@@ -154,37 +154,33 @@ def _static_coverage_estimate(
     source_file: str,
     test_files: list[str],
 ) -> float:
-    """
-    Estimativa estática de cobertura quando o JaCoCo não está disponível.
-
-    Heurística:
-      - Extrai nomes de métodos públicos do arquivo fonte.
-      - Verifica quantos desses nomes aparecem nos arquivos de teste.
-      - Retorna (métodos referenciados / total de métodos) * 100.
-    """
+    
+    #  Busca todos os métodos públicos/privados/protected do arquivo de código-fonte
     source_content = _read_file(source_file)
     method_pattern = re.compile(
         r'\b(?:public|protected|private)\s+\w[\w<>\[\]]*\s+(\w+)\s*\('
     )
     methods = set(method_pattern.findall(source_content))
 
-    # Ignora construtores (mesmo nome da classe)
-    class_name_match = re.search(r'\bclass\s+(\w+)', source_content)
+    # Remove os construtores da classe (métodos com mesmo nome da classe)
+    class_name_pattern = re.compile(
+        r'\bclass\s+(\w+)'
+    )
+    class_name_match = class_name_pattern.search(source_content)
     class_name = class_name_match.group(1) if class_name_match else ""
     methods.discard(class_name)
 
     if not methods:
         return 0.0
 
-    all_test_content = "\n".join(_read_file(tf) for tf in test_files)
+    all_test_content = "\n".join(_read_file(test_file) for test_file in test_files)
+    
+    # Explicação: do `for` filtrado no método `sum`.
+    #   - Para cada método, verifica se está no conteúdo dos testes
+    #   - Para cada método que estiver dentro do conteúdo dos testes, adiciona 1 ao contador
     referenced = sum(1 for m in methods if m in all_test_content)
 
-    # Peso adicional: presença de asserções nos testes
-    assertion_bonus = 0.0
-    if re.search(r'\bassert\w*\s*\(', all_test_content, re.IGNORECASE):
-        assertion_bonus = 5.0
-
-    raw = (referenced / len(methods)) * 100 + assertion_bonus
+    raw = (referenced / len(methods)) * 100
     return min(raw, 100.0)
 
 
@@ -427,13 +423,15 @@ class ConfiabilityAnalyzer:
 
         build_tool = _detect_build_tool(self.project_root)
         print(f"  ✔ Build tool detectado          : {build_tool or 'não identificado'}")
-
-        # --- Cobertura ---
+        
+        # --- Coverage ---
         file_coverages, overall_coverage, jacoco_used = self._analyze_coverage(
             source_files, test_files, build_tool
         )
 
-        # --- Mutação ---
+        # TODO: validar como funciona a meneira estática e pensar se fazer sentido manter
+        #   Pelo que tinha visto, não parece estar validando muita coisa no modo estático.
+        # --- Mutation ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
         mutation_result, pitest_used = self._analyze_mutation(
             source_files, test_files, build_tool
         )
@@ -512,34 +510,35 @@ class ConfiabilityAnalyzer:
         if jacoco_xml:
             jacoco_map = _parse_jacoco_xml(jacoco_xml)
 
+        # Variáveis utilzadas para calcular cobertura do projeto:
         file_coverages: list[FileCoverageResult] = []
-        total_lines = covered_lines_sum = 0
-
-        for sf in source_files:
-            content = _read_file(sf)
+        total_lines = 0
+        covered_lines_sum = 0
+        for file in source_files:
+            content = _read_file(file)
             lines = _count_non_blank_lines(content)
-            name = os.path.basename(sf)
+            name = os.path.basename(file)
 
             # Verifica se há arquivo de teste associado
-            stem = Path(sf).stem
+            stem = Path(file).stem
             associated_tests = [
-                tf for tf in test_files
-                if stem in os.path.basename(tf)
-                or os.path.basename(tf).replace("Test", "").replace("Tests", "") == name.replace(".java", ".java")
+                test_file for test_file in test_files
+                if stem in os.path.basename(test_file)
+                or os.path.basename(test_file).replace("Test", "").replace("Tests", "") == name.replace(".java", ".java")
             ]
             has_associated_test = bool(associated_tests)
 
             if jacoco_map:
                 pct = jacoco_map.get(name, 0.0)
             else:
-                pct = _static_coverage_estimate(sf, test_files)
+                pct = _static_coverage_estimate(file, test_files)
 
             covered = int(lines * pct / 100)
             total_lines += lines
             covered_lines_sum += covered
 
             file_coverages.append(FileCoverageResult(
-                file_path=sf,
+                file_path=file,
                 total_lines=lines,
                 covered_lines=covered,
                 coverage_percent=round(pct, 2),

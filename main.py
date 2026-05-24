@@ -96,15 +96,8 @@ def main():
     wait_next()
     show_cbo_analysis(java_files, project_classes)
     wait_next()
-    result = confiability_analyzer.analyze()
-
-    print(repo_path)
-
-    print(result.score)           
-    print(result.overall_coverage)
-    print(result.file_coverages)  
-    print(result.mutation)        
-
+    confiability_analyzer.analyze()
+    
     print("==============================")
     print("FIM DA ANÁLISE")
     print("==============================")
