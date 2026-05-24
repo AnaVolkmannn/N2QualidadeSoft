@@ -129,6 +129,37 @@ def show_performance_results(
         bootstrap.process.wait()
         logger.info("Process terminated.")
 
+def show_confiability_analysis(
+    java_files,
+    project_classes,
+    repo_path
+    ):
+    confiability_analyzer = ConfiabilityAnalyzer(java_files,project_classes,repo_path, True)
+    result = confiability_analyzer.analyze()
+    
+    overall_coverage = result.overall_coverage
+    score = result.score
+    mutation = result.mutation
+    
+    print()
+    print("-" * 60)
+    print("  RESUMO DE CONFIABILIDADE")
+    print("-" * 60)
+    print(f"  Cobertura geral de linhas : {overall_coverage:.2f}%")
+
+    if mutation:
+        print(f"  Mutantes gerados          : {mutation.total_mutants}")
+        print(f"  Mutantes eliminados       : {mutation.killed_mutants}")
+        print(f"  Mutantes sobreviventes    : {mutation.survived_mutants}")
+        print(f"  Score de mutação          : {mutation.mutation_score * 100:.2f}%")
+
+    print(f"  Score de confiabilidade   : {score:.4f}  ({score * 100:.2f}%)")
+    
+    rating = confiability_analyzer._iso_rating(score)
+    print(f"  Avaliação ISO/IEC 25010   : {rating}")
+    print("-" * 60)
+    
+
 def main():
     global_config = GlobalConfig("config/config.toml")
     clear_terminal()
@@ -140,16 +171,16 @@ def main():
     java_files, build_tool = load_java_files(repo_path)
     project_classes = load_project_classes(java_files)
     
-    confiability_analyzer = ConfiabilityAnalyzer(java_files,project_classes,repo_path, True)
-    
     clear_terminal()
     show_complexity_analysis(java_files, build_tool)
     wait_next()
     show_project_classes(project_classes)
     wait_next()
     show_cbo_analysis(java_files, project_classes)
+    
     wait_next()
-    confiability_analyzer.analyze()
+    show_confiability_analysis(java_files,project_classes,repo_path)
+    wait_next()
     
     show_dryness_analysis(java_files)
     wait_next()

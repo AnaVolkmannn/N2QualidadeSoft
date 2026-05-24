@@ -439,7 +439,7 @@ class ConfiabilityAnalyzer:
         # --- Score ---
         score = self._calculate_score(overall_coverage, mutation_result)
 
-        self._print_summary(overall_coverage, mutation_result, score)
+        # self._print_summary(overall_coverage, mutation_result, score)
 
         return ConfiabilityResult(
             has_tests=has_tests,
