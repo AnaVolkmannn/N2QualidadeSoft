@@ -201,7 +201,6 @@ async def show_performance_results(
         if r.rps:
             logger.info(f"Estimated RPS: {r.rps:.2f} req/s")
 
-
 def show_confiability_analysis(
     java_files,
     project_classes,
@@ -222,7 +221,6 @@ def show_confiability_analysis(
 
     overall_coverage = result.overall_coverage
     score = result.score
-    mutation = result.mutation
 
     print()
     print("-" * 60)
@@ -230,15 +228,6 @@ def show_confiability_analysis(
     print("-" * 60)
 
     print(f"  Cobertura geral de linhas : {overall_coverage:.2f}%")
-
-    if mutation:
-        print(f"  Mutantes gerados          : {mutation.total_mutants}")
-        print(f"  Mutantes eliminados       : {mutation.killed_mutants}")
-        print(f"  Mutantes sobreviventes    : {mutation.survived_mutants}")
-        print(
-            f"  Score de mutação          : "
-            f"{mutation.mutation_score * 100:.2f}%"
-        )
 
     print(
         f"  Score de confiabilidade   : "
@@ -250,70 +239,6 @@ def show_confiability_analysis(
     return {
     "coverage": overall_coverage,
     "score": score,
-    "mutantes_gerados":
-        mutation.total_mutants if mutation else 0,
-    "mutantes_eliminados":
-        mutation.killed_mutants if mutation else 0,
-    "mutantes_sobreviventes":
-        mutation.survived_mutants if mutation else 0
-}
-
-
-
-def show_confiability_analysis(
-    java_files,
-    project_classes,
-    repo_path,
-    build_tool
-):
-
-    confiability_analyzer = ConfiabilityAnalyzer(
-        java_files,
-        project_classes,
-        repo_path,
-        True
-    )
-
-    result = confiability_analyzer.analyze(
-        build_tool
-    )
-
-    overall_coverage = result.overall_coverage
-    score = result.score
-    mutation = result.mutation
-
-    print()
-    print("-" * 60)
-    print("  RESUMO DE CONFIABILIDADE")
-    print("-" * 60)
-
-    print(f"  Cobertura geral de linhas : {overall_coverage:.2f}%")
-
-    if mutation:
-        print(f"  Mutantes gerados          : {mutation.total_mutants}")
-        print(f"  Mutantes eliminados       : {mutation.killed_mutants}")
-        print(f"  Mutantes sobreviventes    : {mutation.survived_mutants}")
-        print(
-            f"  Score de mutação          : "
-            f"{mutation.mutation_score * 100:.2f}%"
-        )
-
-    print(
-        f"  Score de confiabilidade   : "
-        f"{score:.4f}  ({score * 100:.2f}%)"
-    )
-
-    print("-" * 60)
-
-    return {
-    "coverage": overall_coverage,
-    "score": score,
-    "mutantes_gerados":
-        mutation.total_mutants if mutation else 0,
-    "mutantes_eliminados":
-        mutation.killed_mutants if mutation else 0,
-    "mutantes_sobreviventes":
-        mutation.survived_mutants if mutation else 0
 }
 
 
@@ -373,12 +298,6 @@ def main():
         confiabilidade["score"] * 100,
         2
     ),
-    "mutantes_gerados":
-        confiabilidade["mutantes_gerados"],
-    "mutantes_eliminados":
-        confiabilidade["mutantes_eliminados"],
-    "mutantes_sobreviventes":
-        confiabilidade["mutantes_sobreviventes"]
 }
 
     gerar_relatorio(resultado_analise)

@@ -151,180 +151,10 @@ def _static_coverage_estimate(
     #   - Para cada método que estiver dentro do conteúdo dos testes, adiciona 1 ao contador
     referenced = sum(1 for m in methods if m in all_test_content)
 
+    print(methods)
+
     raw = (referenced / len(methods)) * 100
     return min(raw, 100.0)
-
-
-# ---------------------------------------------------------------------------
-# Execução de PIT (análise de mutação)
-# ---------------------------------------------------------------------------
-
-def _run_pitest(project_root: str, build_tool: str) -> Optional[str]:
-    root = Path(project_root)
-    try:
-        if build_tool == "maven":
-            subprocess.run(
-                ["mvn", "-q", "test-compile",
-                 "org.pitest:pitest-maven:mutationCoverage",
-                 "-Dmaven.test.failure.ignore=true"],
-                timeout=600, capture_output=True, cwd=str(root),
-            )
-            pit_dir = root / "target" / "pit-reports"
-        else:
-            subprocess.run(
-                ["./gradlew", "-q", "pitest", f"-p{root}"],
-                timeout=600, capture_output=True, cwd=str(root),
-            )
-            pit_dir = root / "build" / "reports" / "pitest"
-
-        if pit_dir.exists():
-            return str(pit_dir)
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return None
-
-
-def _parse_pitest_report(pit_dir: str) -> MutationResult:
-    total = killed = 0
-    details: list[dict] = []
-    xml_files = list(Path(pit_dir).rglob("mutations.xml"))
-
-    for xml_file in xml_files:
-        try:
-            tree = ET.parse(xml_file)
-            for mutation in tree.getroot().findall("mutation"):
-                total += 1
-                detected = mutation.get("detected", "false").lower() == "true"
-                if detected:
-                    killed += 1
-                details.append({
-                    "mutator": mutation.findtext("mutator", ""),
-                    "source_file": mutation.findtext("sourceFile", ""),
-                    "method": mutation.findtext("methodDescription", ""),
-                    "killed": detected,
-                })
-        except ET.ParseError:
-            continue
-
-    survived = total - killed
-    score = (killed / total) if total else 0.0
-    return MutationResult(total, killed, survived, score, details)
-
-
-# ---------------------------------------------------------------------------
-# Análise de mutação estática (fallback / bônus)
-# ---------------------------------------------------------------------------
-
-# Operadores de mutação léxica aplicados ao código-fonte Java
-_MUTATION_OPERATORS: list[tuple[str, str, str]] = [
-    # (nome, padrão regex, substituição)
-    ("AOR_PLUS_TO_MINUS",   r'(?<!=)\+(?!=)',    "-"),
-    ("AOR_MINUS_TO_PLUS",   r'(?<!=)-(?!=)',     "+"),
-    ("AOR_MUL_TO_DIV",      r'\*',               "/"),
-    ("ROR_EQ_TO_NEQ",       r'==',               "!="),
-    ("ROR_GT_TO_LT",        r'(?<![=<>!])>(?!=)', "<"),
-    ("ROR_LT_TO_GT",        r'(?<![=<>!])<(?!=)', ">"),
-    ("NEGATE_CONDITION",    r'\bif\s*\(',         "if (!( "),
-    ("TRUE_TO_FALSE",       r'\btrue\b',         "false"),
-    ("FALSE_TO_TRUE",       r'\bfalse\b',        "true"),
-    ("REMOVE_RETURN_VALUE", r'\breturn\b',       "return null; //"),
-]
-
-
-def _extract_methods(content: str) -> list[dict]:
-    methods: list[dict] = []
-    lines = content.splitlines(keepends=True)
-
-    method_header = re.compile(
-        r'^\s*(?:public|protected|private|static|\s)*'
-        r'[\w<>\[\]]+\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w,\s]+)?\s*\{'
-    )
-
-    i = 0
-    while i < len(lines):
-        m = method_header.match(lines[i])
-        if m:
-            name = m.group(1)
-            depth = lines[i].count("{") - lines[i].count("}")
-            start = i
-            i += 1
-            while i < len(lines) and depth > 0:
-                depth += lines[i].count("{") - lines[i].count("}")
-                i += 1
-            methods.append({
-                "name": name,
-                "start": start,
-                "end": i,
-                "body": "".join(lines[start:i]),
-            })
-        else:
-            i += 1
-    return methods
-
-
-def _apply_mutation(body: str, operator: tuple[str, str, str]) -> Optional[str]:
-    """Aplica um operador de mutação ao corpo de um método."""
-    _, pattern, replacement = operator
-    new_body, n = re.subn(pattern, replacement, body, count=1)
-    return new_body if n > 0 else None
-
-
-def _test_kills_mutation(
-    mutant_method_name: str,
-    mutant_body: str,
-    test_files: list[str],
-) -> bool:
-    for tf in test_files:
-        tc = _read_file(tf)
-        if mutant_method_name in tc and re.search(
-            r'\bassert\w*\s*\(', tc, re.IGNORECASE
-        ):
-            return True
-    return False
-
-
-def _static_mutation_analysis(
-    source_files: list[str],
-    test_files: list[str],
-    max_mutants_per_file: int = 20,
-) -> MutationResult:
-    total = killed = 0
-    details: list[dict] = []
-
-    for sf in source_files:
-        content = _read_file(sf)
-        methods = _extract_methods(content)
-
-        # Limita para não explodir o tempo de execução
-        sampled = methods if len(methods) <= max_mutants_per_file else \
-            random.sample(methods, max_mutants_per_file)
-
-        for method in sampled:
-            for op in _MUTATION_OPERATORS:
-                mutant_body = _apply_mutation(method["body"], op)
-                if mutant_body is None:
-                    continue
-                is_killed = _test_kills_mutation(
-                    method["name"], mutant_body, test_files
-                )
-                total += 1
-                if is_killed:
-                    killed += 1
-                details.append({
-                    "mutator": op[0],
-                    "source_file": os.path.basename(sf),
-                    "method": method["name"],
-                    "killed": is_killed,
-                })
-
-    survived = total - killed
-    score = (killed / total) if total else 0.0
-    return MutationResult(total, killed, survived, score, details)
-
-
-# ---------------------------------------------------------------------------
-# Classe principal
-# ---------------------------------------------------------------------------
 
 class ConfiabilityAnalyzer:
 
@@ -367,15 +197,8 @@ class ConfiabilityAnalyzer:
             source_files, test_files, build_tool
         )
 
-        # TODO: validar como funciona a meneira estática e pensar se fazer sentido manter
-        #   Pelo que tinha visto, não parece estar validando muita coisa no modo estático.
-        # --- Mutation ---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-        mutation_result, pitest_used = self._analyze_mutation(
-            source_files, test_files, build_tool
-        )
-
         # --- Score ---
-        score = self._calculate_score(overall_coverage, mutation_result)
+        score = self._calculate_score(overall_coverage)
 
         # self._print_summary(overall_coverage, mutation_result, score)
 
@@ -385,11 +208,11 @@ class ConfiabilityAnalyzer:
             source_files=source_files,
             overall_coverage=overall_coverage,
             file_coverages=file_coverages,
-            mutation=mutation_result,
+            mutation=None,
             score=score,
             build_tool=build_tool,
             jacoco_used=jacoco_used,
-            pitest_used=pitest_used,
+            pitest_used=False,
         )
 
     # ------------------------------------------------------------------
@@ -483,40 +306,12 @@ class ConfiabilityAnalyzer:
         return file_coverages, round(overall, 2), jacoco_used
 
     # ------------------------------------------------------------------
-    # Mutação
-    # ------------------------------------------------------------------
-
-    def _analyze_mutation(
-        self,
-        source_files: list[str],
-        test_files: list[str],
-        build_tool: Optional[str],
-    ) -> tuple[Optional[MutationResult], bool]:
-        if not self.run_mutation:
-            return None, False
-
-        pitest_used = False
-
-        if build_tool:
-            print("\n  [Mutação] Executando PIT…")
-            pit_dir = _run_pitest(self.project_root, build_tool)
-            if pit_dir:
-                print(f"  [Mutação] Relatório PIT: {pit_dir}")
-                pitest_used = True
-                return _parse_pitest_report(pit_dir), True
-
-        print("  [Mutação] PIT não disponível — executando análise estática de mutação…")
-        result = _static_mutation_analysis(source_files, test_files)
-        return result, pitest_used
-
-    # ------------------------------------------------------------------
     # Score
     # ------------------------------------------------------------------
 
     def _calculate_score(
         self,
         overall_coverage: float,
-        mutation: Optional[MutationResult],
     ) -> float:
         """
         Score de confiabilidade [0, 1]:
@@ -524,10 +319,6 @@ class ConfiabilityAnalyzer:
           - 30% vem do score de mutação (se disponível)
         """
         coverage_score = min(overall_coverage / self._COVERAGE_FULL_SCORE_THRESHOLD, 1.0)
-
-        if mutation and mutation.total_mutants > 0:
-            mutation_score = mutation.mutation_score
-            return round(coverage_score * 0.7 + mutation_score * 0.3, 4)
 
         return round(coverage_score, 4)
 
@@ -568,27 +359,3 @@ class ConfiabilityAnalyzer:
         print("=" * 60)
         print("  MÓDULO III — CONFIABILIDADE (ISO/IEC 25010)")
         print("=" * 60)
-
-    def _print_summary(
-        self,
-        overall_coverage: float,
-        mutation: Optional[MutationResult],
-        score: float,
-    ) -> None:
-        print()
-        print("-" * 60)
-        print("  RESUMO DE CONFIABILIDADE")
-        print("-" * 60)
-        print(f"  Cobertura geral de linhas : {overall_coverage:.2f}%")
-
-        if mutation:
-            print(f"  Mutantes gerados          : {mutation.total_mutants}")
-            print(f"  Mutantes eliminados       : {mutation.killed_mutants}")
-            print(f"  Mutantes sobreviventes    : {mutation.survived_mutants}")
-            print(f"  Score de mutação          : {mutation.mutation_score * 100:.2f}%")
-
-        print(f"  Score de confiabilidade   : {score:.4f}  ({score * 100:.2f}%)")
-
-        rating = self._iso_rating(score)
-        print(f"  Avaliação ISO/IEC 25010   : {rating}")
-        print("-" * 60)

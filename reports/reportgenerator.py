@@ -531,15 +531,7 @@ def gerar_relatorio(resultado):
 
         ["Blocos duplicados",
          str(resultado['duplicacoes'])],
-
-        ["Mutantes gerados",
-         str(resultado['mutantes_gerados'])],
-
-        ["Mutantes eliminados",
-         str(resultado['mutantes_eliminados'])],
-
-        ["Mutantes sobreviventes",
-         str(resultado['mutantes_sobreviventes'])],
+        
     ]
 
     tabela_estatisticas = Table(
